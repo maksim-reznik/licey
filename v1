@@ -1,56 +1,107 @@
-import pyaudio
-import wave
+import os
+import shutil
+import matplotlib.pyplot as plt
+import numpy as np
 from pydub import AudioSegment
 
-# 1. Склейка 2х аудио
-def concatenate_audio(file1, file2, output_file):
-    audio1 = AudioSegment.from_file(file1)
-    audio2 = AudioSegment.from_file(file2)
-    combined = audio1 + audio2
-    combined.export(output_file, format="wav")
+class SoundEditor:
+    def __init__(self):
+        self.files = {}
+        self.track = AudioSegment.silent(duration=0)
+        self.project_folder = 'sound_project'
+        os.makedirs(self.project_folder, exist_ok=True)
 
-# 2. Склейка аудио и из 2х звуковых дорожек
-def concatenate_with_tracks(audio_file, track1_file, track2_file, output_file):
-    audio = AudioSegment.from_file(audio_file)
-    track1 = AudioSegment.from_file(track1_file)
-    track2 = AudioSegment.from_file(track2_file)
+    def import_file(self, file_path):
+        if not os.path.isfile(file_path):
+            print("Файл не существует.")
+            return
 
-    # Склеиваем дорожки
-    combined_tracks = track1 + track2
-    combined = audio.overlay(combined_tracks)
-    combined.export(output_file, format="wav")
+        file_ext = os.path.splitext(file_path)[1].lower()
+        if file_ext not in ['.wav', '.mp3']:
+            print("Неподдерживаемый формат файла. Поддерживаются .wav и .mp3")
+            return
 
-# 3. Добавление звука на звуковую дорожку
-def add_sound_to_track(track_file, sound_file, output_file):
-    track = AudioSegment.from_file(track_file)
-    sound = AudioSegment.from_file(sound_file)
+        file_id = len(self.files) + 1
+        new_file_path = os.path.join(self.project_folder, os.path.basename(file_path))
+        shutil.copy(file_path, new_file_path)
+        self.files[file_id] = new_file_path
+        print(f"Файл {file_path} импортирован с ID {file_id}.")
 
-    # Добавляем звук в начало дорожки
-    combined = track.overlay(sound)
-    combined.export(output_file, format="wav")
+    def list_files(self):
+        for file_id, file_path in self.files.items():
+            print(f"ID: {file_id}, Файл: {file_path}")
 
-# 4. Удаление звука со звуковой дорожки
-def remove_sound_from_track(track_file, sound_file, output_file):
-    track = AudioSegment.from_file(track_file)
-    sound = AudioSegment.from_file(sound_file)
+    def add_file(self, file_id, start_time):
+        if file_id not in self.files:
+            print("Файл с таким ID не существует.")
+            return
 
-    # Предположим, что звук, который нужно удалить, уже начинается с начала дорожки
-    modified_track = track - sound
-    modified_track.export(output_file, format="wav")
+        audio_segment = AudioSegment.from_file(self.files[file_id])
+        self.track = self.track.overlay(audio_segment, position=start_time * 1000)
+        print(f"Файл с ID {file_id} добавлен на {start_time} секунд(ы).")
 
-# 5. Экспорт и импорт аудиофайлов
-def export_audio(input_file, output_file):
-    audio = AudioSegment.from_file(input_file)
-    audio.export(output_file, format="wav")
+    def delete_files_at(self, second):
+        # Извлекаем сегменты
+        segments = []
+        current_time = 0
+        duration_ms = len(self.track)
 
-def import_audio(input_file):
-    return AudioSegment.from_file(input_file)
+        while current_time < duration_ms:
+            seg_end = current_time + 1000
+            segments.append((current_time, self.track[current_time:seg_end]))
+            current_time = seg_end
 
-# Пример использования функций
-if __name__ == "__main__":
-    concatenate_audio("audio1.wav", "audio2.wav", "output_combined.wav")
-    concatenate_with_tracks("background.wav", "track1.wav", "track2.wav", "output_with_tracks.wav")
-    add_sound_to_track("track.wav", "sound.wav", "output_added.wav")
-    remove_sound_from_track("track.wav", "sound_to_remove.wav", "output_removed.wav")
-    export_audio("input.wav", "exported_output.wav")
-    audio_segment = import_audio("input.wav")
+        # Удаляем сегменты, которые начинаются в заданной секунде
+        self.track = AudioSegment.silent(duration=0)
+        for start, segment in segments:
+            if start // 1000 != second:
+                self.track += segment
+
+        print(f"Все файлы, начинающиеся в {second} секунду, удалены.")
+
+    def clear(self):
+        self.files.clear()
+        self.track = AudioSegment.silent(duration=0)
+        for f in os.listdir(self.project_folder):
+            os.remove(os.path.join(self.project_folder, f))
+        print("Все файлы удалены из проекта.")
+
+    def visualize(self):
+        # Визуализация
+        plt.figure(figsize=(20, 4))
+        # Получаем данные для визуализации
+        data = np.array(self.track.get_array_of_samples())
+        plt.plot(data)
+        plt.title('Визуализация звуковой дорожки')
+        plt.xlabel('Время (сэмплы)')
+        plt.ylabel('Амплитуда')
+        plt.grid()
+        plt.show()
+
+def main():
+    editor = SoundEditor()
+
+    while True:
+        command = input("Введите команду: ")
+        parts = command.split()
+
+        if parts[0] == '/import' and len(parts) == 2:
+            editor.import_file(parts[1])
+        elif parts[0] == '/list':
+            editor.list_files()
+        elif parts[0] == '/add' and len(parts) == 3:
+            editor.add_file(int(parts[1]), int(parts[2]))
+        elif parts[0] == '/del' and len(parts) == 2:
+            editor.delete_files_at(int(parts[1]))
+        elif parts[0] == '/hash':
+            editor.clear()
+        elif parts[0] == '/viz':
+            editor.visualize()
+        elif parts[0] == '/exit':
+            print("Выход из программы.")
+            break
+        else:
+            print("Неизвестная команда.")
+
+if __name__ == '__main__':
+    main()
