@@ -7,9 +7,12 @@ from pydub import AudioSegment
 class SoundEditor:
     def __init__(self):
         self.files = {}
+        self.viz_list = []
         self.track = AudioSegment.silent(duration=0)
         self.project_folder = 'sound_project'
         os.makedirs(self.project_folder, exist_ok=True)
+        for f in os.listdir(self.project_folder):
+            os.remove(os.path.join(self.project_folder, f))
 
     def import_file(self, file_path):
         if not os.path.isfile(file_path):
@@ -38,6 +41,7 @@ class SoundEditor:
 
         audio_segment = AudioSegment.from_file(self.files[file_id])
         self.track = self.track.overlay(audio_segment, position=start_time * 1000)
+        self.viz_list.append((start_time, audio_segment.duration_seconds))
         print(f"Файл с ID {file_id} добавлен на {start_time} секунд(ы).")
 
     def delete_files_at(self, second):
@@ -56,7 +60,7 @@ class SoundEditor:
         for start, segment in segments:
             if start // 1000 != second:
                 self.track += segment
-
+        self.viz_list = [i for i in self.viz_list if i[0] != second]
         print(f"Все файлы, начинающиеся в {second} секунду, удалены.")
 
     def clear(self):
@@ -67,15 +71,25 @@ class SoundEditor:
         print("Все файлы удалены из проекта.")
 
     def visualize(self):
-        # Визуализация
-        plt.figure(figsize=(20, 4))
-        # Получаем данные для визуализации
-        data = np.array(self.track.get_array_of_samples())
-        plt.plot(data)
-        plt.title('Визуализация звуковой дорожки')
+        segments = self.viz_list
+        print(segments)
+        y_positions = range(len(segments))
+
+        # Создаем график
+        plt.figure(figsize=(10, len(segments) + 6))
+
+        # Отображаем отрезки на графике
+        for y, (start, end) in zip(y_positions, segments):
+            plt.hlines(y, start, end, color='b',
+                       linewidth=10)
+
         plt.xlabel('Время (сэмплы)')
-        plt.ylabel('Амплитуда')
-        plt.grid()
+        plt.ylabel('№ ID')
+        plt.yticks(y_positions, [f'Segment {i + 1}' for i in range(len(segments))])
+        plt.title('Display of Numeric Segments')
+        plt.grid(True)
+
+        # Показать график
         plt.show()
 
 def main():
@@ -85,19 +99,20 @@ def main():
         command = input("Введите команду: ")
         parts = command.split()
 
-        if parts[0] == '/import' and len(parts) == 2:
+        if parts[0] == '!import' and len(parts) == 2:
             editor.import_file(parts[1])
-        elif parts[0] == '/list':
+        elif parts[0] == '!list':
             editor.list_files()
-        elif parts[0] == '/add' and len(parts) == 3:
+        elif parts[0] == '!add' and len(parts) == 3:
             editor.add_file(int(parts[1]), int(parts[2]))
-        elif parts[0] == '/del' and len(parts) == 2:
+        elif parts[0] == '!del' and len(parts) == 2:
             editor.delete_files_at(int(parts[1]))
-        elif parts[0] == '/hash':
+        elif parts[0] == '!hash':
             editor.clear()
-        elif parts[0] == '/viz':
+        elif parts[0] == '!viz':
             editor.visualize()
-        elif parts[0] == '/exit':
+        elif parts[0] == '!exit':
+            editor.clear()
             print("Выход из программы.")
             break
         else:
