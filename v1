@@ -1,0 +1,56 @@
+import pyaudio
+import wave
+from pydub import AudioSegment
+
+# 1. Склейка 2х аудио
+def concatenate_audio(file1, file2, output_file):
+    audio1 = AudioSegment.from_file(file1)
+    audio2 = AudioSegment.from_file(file2)
+    combined = audio1 + audio2
+    combined.export(output_file, format="wav")
+
+# 2. Склейка аудио и из 2х звуковых дорожек
+def concatenate_with_tracks(audio_file, track1_file, track2_file, output_file):
+    audio = AudioSegment.from_file(audio_file)
+    track1 = AudioSegment.from_file(track1_file)
+    track2 = AudioSegment.from_file(track2_file)
+
+    # Склеиваем дорожки
+    combined_tracks = track1 + track2
+    combined = audio.overlay(combined_tracks)
+    combined.export(output_file, format="wav")
+
+# 3. Добавление звука на звуковую дорожку
+def add_sound_to_track(track_file, sound_file, output_file):
+    track = AudioSegment.from_file(track_file)
+    sound = AudioSegment.from_file(sound_file)
+
+    # Добавляем звук в начало дорожки
+    combined = track.overlay(sound)
+    combined.export(output_file, format="wav")
+
+# 4. Удаление звука со звуковой дорожки
+def remove_sound_from_track(track_file, sound_file, output_file):
+    track = AudioSegment.from_file(track_file)
+    sound = AudioSegment.from_file(sound_file)
+
+    # Предположим, что звук, который нужно удалить, уже начинается с начала дорожки
+    modified_track = track - sound
+    modified_track.export(output_file, format="wav")
+
+# 5. Экспорт и импорт аудиофайлов
+def export_audio(input_file, output_file):
+    audio = AudioSegment.from_file(input_file)
+    audio.export(output_file, format="wav")
+
+def import_audio(input_file):
+    return AudioSegment.from_file(input_file)
+
+# Пример использования функций
+if __name__ == "__main__":
+    concatenate_audio("audio1.wav", "audio2.wav", "output_combined.wav")
+    concatenate_with_tracks("background.wav", "track1.wav", "track2.wav", "output_with_tracks.wav")
+    add_sound_to_track("track.wav", "sound.wav", "output_added.wav")
+    remove_sound_from_track("track.wav", "sound_to_remove.wav", "output_removed.wav")
+    export_audio("input.wav", "exported_output.wav")
+    audio_segment = import_audio("input.wav")
