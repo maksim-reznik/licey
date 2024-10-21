@@ -3,18 +3,23 @@ import shutil
 import matplotlib.pyplot as plt
 import numpy as np
 from pydub import AudioSegment
+from PyQt5 import QtCore, QtWidgets
+
+app = QtWidgets.QApplication([])
 
 class SoundEditor:
     def __init__(self):
         self.files = {}
         self.viz_list = []
         self.track = AudioSegment.silent(duration=0)
-        self.project_folder = 'sound_project'
+        self.project_folder = 'soundproject'
         os.makedirs(self.project_folder, exist_ok=True)
+
         for f in os.listdir(self.project_folder):
             os.remove(os.path.join(self.project_folder, f))
 
-    def import_file(self, file_path):
+    def import_file(self):
+        file_path = QtWidgets.QFileDialog.getOpenFileName()[0]
         if not os.path.isfile(file_path):
             print("Файл не существует.")
             return
@@ -26,9 +31,10 @@ class SoundEditor:
 
         file_id = len(self.files) + 1
         new_file_path = os.path.join(self.project_folder, os.path.basename(file_path))
+
         shutil.copy(file_path, new_file_path)
         self.files[file_id] = new_file_path
-        print(f"Файл {file_path} импортирован с ID {file_id}.")
+        print(f"Файл {os.path.basename(file_path)} импортирован с ID {file_id}.")
 
     def list_files(self):
         for file_id, file_path in self.files.items():
@@ -45,7 +51,6 @@ class SoundEditor:
         print(f"Файл с ID {file_id} добавлен на {start_time} секунд(ы).")
 
     def delete_files_at(self, second):
-        # Извлекаем сегменты
         segments = []
         current_time = 0
         duration_ms = len(self.track)
@@ -55,11 +60,11 @@ class SoundEditor:
             segments.append((current_time, self.track[current_time:seg_end]))
             current_time = seg_end
 
-        # Удаляем сегменты, которые начинаются в заданной секунде
         self.track = AudioSegment.silent(duration=0)
         for start, segment in segments:
             if start // 1000 != second:
                 self.track += segment
+
         self.viz_list = [i for i in self.viz_list if i[0] != second]
         print(f"Все файлы, начинающиеся в {second} секунду, удалены.")
 
@@ -75,22 +80,52 @@ class SoundEditor:
         print(segments)
         y_positions = range(len(segments))
 
-        # Создаем график
         plt.figure(figsize=(10, len(segments) + 6))
 
-        # Отображаем отрезки на графике
         for y, (start, end) in zip(y_positions, segments):
-            plt.hlines(y, start, end, color='b',
-                       linewidth=10)
+            plt.hlines(y, start, end, color='b', linewidth=10)
 
         plt.xlabel('Время (сэмплы)')
         plt.ylabel('№ ID')
         plt.yticks(y_positions, [f'Segment {i + 1}' for i in range(len(segments))])
         plt.title('Display of Numeric Segments')
         plt.grid(True)
-
-        # Показать график
         plt.show()
+
+    def divide_file(self, file_id, second):
+        if file_id not in self.files:
+            print("Файл с таким ID не существует.")
+            return
+
+        audio_segment = AudioSegment.from_file(self.files[file_id])
+        duration_ms = len(audio_segment)
+
+        if second * 1000 >= duration_ms:
+            print("Указанная секунда превышает продолжительность файла.")
+            return
+
+        part1 = audio_segment[:second * 1000]
+        part2 = audio_segment[second * 1000:]
+
+        # Save the original and the divided parts
+        part1_path = os.path.join(self.project_folder, f"part1_ID_{file_id}.wav")
+        part2_path = os.path.join(self.project_folder, f"part2_ID_{file_id}.wav")
+
+        part1.export(part1_path, format="wav")
+        part2.export(part2_path, format="wav")
+
+        new_id1 = len(self.files) + 1
+        new_id2 = new_id1 + 1
+
+        self.files[new_id1] = part1_path
+        self.files[new_id2] = part2_path
+
+        print(f"Созданы новые файлы: [ID {new_id1}] {os.path.basename(part1_path)}, [ID {new_id2}] {os.path.basename(part2_path)}")
+
+    def export(self):
+        output_path = os.path.join(self.project_folder, "final_output.wav")
+        self.track.export(output_path, format="wav")
+        print(f"Итоговый файл экспортирован как {output_path}")
 
 def main():
     editor = SoundEditor()
@@ -99,8 +134,8 @@ def main():
         command = input("Введите команду: ")
         parts = command.split()
 
-        if parts[0] == '!import' and len(parts) == 2:
-            editor.import_file(parts[1])
+        if parts[0] == '!import':
+            editor.import_file()
         elif parts[0] == '!list':
             editor.list_files()
         elif parts[0] == '!add' and len(parts) == 3:
@@ -111,6 +146,10 @@ def main():
             editor.clear()
         elif parts[0] == '!viz':
             editor.visualize()
+        elif parts[0] == '!div' and len(parts) == 3:
+            editor.divide_file(int(parts[1]), int(parts[2]))
+        elif parts[0] == '!export':
+            editor.export()
         elif parts[0] == '!exit':
             editor.clear()
             print("Выход из программы.")
