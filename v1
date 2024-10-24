@@ -1,161 +1,165 @@
 import os
 import shutil
-import matplotlib.pyplot as plt
+import pydub
+from pydub import AudioSegment, playback
 import numpy as np
-from pydub import AudioSegment
+import matplotlib.pyplot as plt
 from PyQt5 import QtCore, QtWidgets
 
 app = QtWidgets.QApplication([])
 
-class SoundEditor:
+SAVED_FILES_DIR = "saved_audio_files"
+
+class AudioEditor:
     def __init__(self):
-        self.files = {}
-        self.viz_list = []
-        self.track = AudioSegment.silent(duration=0)
-        self.project_folder = 'soundproject'
-        os.makedirs(self.project_folder, exist_ok=True)
+        self.audio_files = {}
+        self.audio_lengths = []
+        self._create_output_directory()
+        self._create_saved_files_directory()
+        self._clean_output_directory()
 
-        for f in os.listdir(self.project_folder):
-            os.remove(os.path.join(self.project_folder, f))
+    def _create_output_directory(self):
+        if not os.path.exists(SAVED_FILES_DIR):
+            os.makedirs(SAVED_FILES_DIR)
 
-    def import_file(self):
+    def _create_saved_files_directory(self):
+        if not os.path.exists(SAVED_FILES_DIR):
+            os.makedirs(SAVED_FILES_DIR)
+
+    def _clean_output_directory(self):
+        for filename in os.listdir(SAVED_FILES_DIR):
+            file_path = os.path.join(SAVED_FILES_DIR, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print(f'Error deleting file {file_path}. Reason: {e}')
+
+    def import_files(self):
         file_path = QtWidgets.QFileDialog.getOpenFileName()[0]
-        if not os.path.isfile(file_path):
-            print("Файл не существует.")
-            return
+        self.audio_files[len(self.audio_files) + 1] = file_path
+        shutil.copy(file_path, SAVED_FILES_DIR)
 
-        file_ext = os.path.splitext(file_path)[1].lower()
-        if file_ext not in ['.wav', '.mp3']:
-            print("Неподдерживаемый формат файла. Поддерживаются .wav и .mp3")
-            return
+    def show_audio_files(self):
+        print("\n" * 4)
+        print("ID\tНазвание файла")
+        for idx, filename in self.audio_files.items():
+            print(f"{idx}\t{filename}")
 
-        file_id = len(self.files) + 1
-        new_file_path = os.path.join(self.project_folder, os.path.basename(file_path))
+    def add_file_to_end(self, file_id):
+        if file_id in self.audio_files:
+            audio_to_add = AudioSegment.from_file(self.audio_files[file_id])
+            self.audio_lengths.append(len(audio_to_add))
+            if hasattr(self, 'combined_audio'):
+                self.combined_audio += audio_to_add
+            else:
+                self.combined_audio = audio_to_add
+            print(f"Файл {self.audio_files[file_id]} добавлен в конец аудио-дорожки.")
+        else:
+            print("Недействительный ID файла.")
 
-        shutil.copy(file_path, new_file_path)
-        self.files[file_id] = new_file_path
-        print(f"Файл {os.path.basename(file_path)} импортирован с ID {file_id}.")
+    def remove_last_file(self):
+        if hasattr(self, 'combined_audio') and self.combined_audio:
+            if self.audio_lengths:
+                last_length = self.audio_lengths.pop()
+                self.combined_audio = self.combined_audio[:-last_length]
+                print("Последний файл удален.")
+            else:
+                print("Нет аудиофайлов для удаления.")
+        else:
+            print("Нет комбинированной аудиодорожки для удаления.")
 
-    def list_files(self):
-        for file_id, file_path in self.files.items():
-            print(f"ID: {file_id}, Файл: {file_path}")
+    def split_file(self, file_id, split_time):
+        if file_id in self.audio_files:
+            audio = AudioSegment.from_file(self.audio_files[file_id])
+            split_time_ms = split_time * 1000
+            part1 = audio[:split_time_ms]
+            part2 = audio[split_time_ms:]
+            part1_path = os.path.join(SAVED_FILES_DIR, f"part1_{self.audio_files[file_id].split('/')[-1]}")
+            part2_path = os.path.join(SAVED_FILES_DIR, f"part2_{self.audio_files[file_id].split('/')[-1]}")
+            part1.export(part1_path, format="mp3")
+            part2.export(part2_path, format="mp3")
+            self.audio_files[len(self.audio_files) + 1] = part1_path
+            self.audio_files[len(self.audio_files) + 1] = part2_path
+            print(f"Файл {self.audio_files[file_id]} разделен на две части.")
+        else:
+            print("Недействительный ID файла.")
 
-    def add_file(self, file_id, start_time):
-        if file_id not in self.files:
-            print("Файл с таким ID не существует.")
-            return
+    def visualize_audio(self):
+        if hasattr(self, 'combined_audio'):
+            data = np.array(self.combined_audio.get_array_of_samples())
+            plt.figure(figsize=(12, 3))
 
-        audio_segment = AudioSegment.from_file(self.files[file_id])
-        self.track = self.track.overlay(audio_segment, position=start_time * 1000)
-        self.viz_list.append((start_time, audio_segment.duration_seconds))
-        print(f"Файл с ID {file_id} добавлен на {start_time} секунд(ы).")
 
-    def delete_files_at(self, second):
-        segments = []
-        current_time = 0
-        duration_ms = len(self.track)
+            # Horizontal timeline
+            plt.subplot(1, 1, 1)
+            plt.plot(data)
+            plt.title('Горизонтальный таймлайн аудиодорожки')
+            plt.xlabel('Время (сэмплы)')
+            plt.yticks([])  # Hide y-axis ticks for clarity
+            plt.grid(True)
 
-        while current_time < duration_ms:
-            seg_end = current_time + 1000
-            segments.append((current_time, self.track[current_time:seg_end]))
-            current_time = seg_end
+            plt.tight_layout()
+            plt.show()
+        else:
+            print("Нет комбинированной аудиодорожки для визуализации.")
 
-        self.track = AudioSegment.silent(duration=0)
-        for start, segment in segments:
-            if start // 1000 != second:
-                self.track += segment
+    def play_audio(self):
+        if hasattr(self, 'combined_audio'):
+            playback.play(self.combined_audio)
+        else:
+            print("Нет комбинированной аудиодорожки.")
 
-        self.viz_list = [i for i in self.viz_list if i[0] != second]
-        print(f"Все файлы, начинающиеся в {second} секунду, удалены.")
-
-    def clear(self):
-        self.files.clear()
-        self.track = AudioSegment.silent(duration=0)
-        for f in os.listdir(self.project_folder):
-            os.remove(os.path.join(self.project_folder, f))
-        print("Все файлы удалены из проекта.")
-
-    def visualize(self):
-        segments = self.viz_list
-        print(segments)
-        y_positions = range(len(segments))
-
-        plt.figure(figsize=(10, len(segments) + 6))
-
-        for y, (start, end) in zip(y_positions, segments):
-            plt.hlines(y, start, end, color='b', linewidth=10)
-
-        plt.xlabel('Время (сэмплы)')
-        plt.ylabel('№ ID')
-        plt.yticks(y_positions, [f'Segment {i + 1}' for i in range(len(segments))])
-        plt.title('Display of Numeric Segments')
-        plt.grid(True)
-        plt.show()
-
-    def divide_file(self, file_id, second):
-        if file_id not in self.files:
-            print("Файл с таким ID не существует.")
-            return
-
-        audio_segment = AudioSegment.from_file(self.files[file_id])
-        duration_ms = len(audio_segment)
-
-        if second * 1000 >= duration_ms:
-            print("Указанная секунда превышает продолжительность файла.")
-            return
-
-        part1 = audio_segment[:second * 1000]
-        part2 = audio_segment[second * 1000:]
-
-        # Save the original and the divided parts
-        part1_path = os.path.join(self.project_folder, f"part1_ID_{file_id}.wav")
-        part2_path = os.path.join(self.project_folder, f"part2_ID_{file_id}.wav")
-
-        part1.export(part1_path, format="wav")
-        part2.export(part2_path, format="wav")
-
-        new_id1 = len(self.files) + 1
-        new_id2 = new_id1 + 1
-
-        self.files[new_id1] = part1_path
-        self.files[new_id2] = part2_path
-
-        print(f"Созданы новые файлы: [ID {new_id1}] {os.path.basename(part1_path)}, [ID {new_id2}] {os.path.basename(part2_path)}")
-
-    def export(self):
-        output_path = os.path.join(self.project_folder, "final_output.wav")
-        self.track.export(output_path, format="wav")
-        print(f"Итоговый файл экспортирован как {output_path}")
+    def export_final_file(self, filename="final_output.mp3"):
+        if hasattr(self, 'combined_audio'):
+            output_file_path = os.path.join(SAVED_FILES_DIR, filename)
+            self.combined_audio.export(output_file_path, format="mp3")
+            print(f"Файл экспортирован как {output_file_path}.")
+        else:
+            print("Нет комбинированной аудиодорожки для экспорта.")
 
 def main():
-    editor = SoundEditor()
+    editor = AudioEditor()
 
     while True:
-        command = input("Введите команду: ")
-        parts = command.split()
+        print("\\n" * 4)
+        print("Выберите действие:")
+        print("1. Импортировать аудиофайлы")
+        print("2. Показать аудиофайлы")
+        print("3. Добавить аудиофайл в конец дорожки")
+        print("4. Удалить последний аудиофайл")
+        print("5. Разделить файл на 2 части")
+        print("6. Визуализировать аудиодорожку")
+        print("7. Экспортировать конечный файл")
+        print("8. Проиграть конечный файл")
+        print("9. Выход")
 
-        if parts[0] == '!import':
-            editor.import_file()
-        elif parts[0] == '!list':
-            editor.list_files()
-        elif parts[0] == '!add' and len(parts) == 3:
-            editor.add_file(int(parts[1]), int(parts[2]))
-        elif parts[0] == '!del' and len(parts) == 2:
-            editor.delete_files_at(int(parts[1]))
-        elif parts[0] == '!hash':
-            editor.clear()
-        elif parts[0] == '!viz':
-            editor.visualize()
-        elif parts[0] == '!div' and len(parts) == 3:
-            editor.divide_file(int(parts[1]), int(parts[2]))
-        elif parts[0] == '!export':
-            editor.export()
-        elif parts[0] == '!exit':
-            editor.clear()
-            print("Выход из программы.")
+        choice = input("Введите номер действия: ")
+
+        if choice == "1":
+            editor.import_files()
+        elif choice == "2":
+            editor.show_audio_files()
+        elif choice == "3":
+            file_id = int(input("Введите ID файла для добавления: "))
+            editor.add_file_to_end(file_id)
+        elif choice == "4":
+            editor.remove_last_file()
+        elif choice == "5":
+            file_id = int(input("Введите ID файла для разделения: "))
+            split_time = int(input("Введите секунду для разделения: "))
+            editor.split_file(file_id, split_time)
+        elif choice == "6":
+            editor.visualize_audio()
+        elif choice == "7":
+            filename = input("Введите имя для экспортируемого файла (по умолчанию final_output.mp3): ")
+            if not filename:
+                filename = "final_output.mp3"
+            editor.export_final_file(filename)
+        elif choice == "8":
             break
         else:
-            print("Неизвестная команда.")
+            print("Недействительный выбор, попробуйте снова.")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
