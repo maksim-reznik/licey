@@ -3,7 +3,9 @@ import shutil
 import pydub
 from pydub import AudioSegment, playback
 import numpy as np
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from PyQt5 import QtCore, QtWidgets
 
 app = QtWidgets.QApplication([])
@@ -14,6 +16,7 @@ class AudioEditor:
     def __init__(self):
         self.audio_files = {}
         self.audio_lengths = []
+        self.audio_segments = []
         self._create_output_directory()
         self._create_saved_files_directory()
         self._clean_output_directory()
@@ -49,6 +52,13 @@ class AudioEditor:
     def add_file_to_end(self, file_id):
         if file_id in self.audio_files:
             audio_to_add = AudioSegment.from_file(self.audio_files[file_id])
+            start = len(self.combined_audio) if hasattr(self, 'combined_audio') else 0
+            end = start + len(audio_to_add)
+            self.audio_segments.append({
+                'start': start,
+                'end': end,
+                'name': os.path.basename(self.audio_files[file_id])
+            })
             self.audio_lengths.append(len(audio_to_add))
             if hasattr(self, 'combined_audio'):
                 self.combined_audio += audio_to_add
@@ -62,6 +72,7 @@ class AudioEditor:
         if hasattr(self, 'combined_audio') and self.combined_audio:
             if self.audio_lengths:
                 last_length = self.audio_lengths.pop()
+                self.audio_segments.pop(-1)
                 self.combined_audio = self.combined_audio[:-last_length]
                 print("Последний файл удален.")
             else:
@@ -85,26 +96,75 @@ class AudioEditor:
         else:
             print("Недействительный ID файла.")
 
+    # def visualize_audio(self):
+    #     if hasattr(self, 'combined_audio'):
+    #         data = np.array(self.combined_audio.get_array_of_samples())
+    #         plt = self.figure.add_subplot(212)
+    #         plt.figure(figsize=(12, 3))
+    #         plt.plot(data)
+    #         plt.set_title('Горизонтальный таймлайн аудиодорожки')
+    #         plt.set_xlabel('Время (сэмплы)')
+    #         plt.set_yticks([])
+    #         plt.grid(True)
+    #
+    #         colors = list(mcolors.TABLEAU_COLORS.values())
+    #         for i, segment in enumerate(self.audio_segments):
+    #             color = colors[i % len(colors)]
+    #             ax.barh(0, segment['end'] - segment['start'], left=segment['start'], height=0.25,
+    #                     color=color, label=f"File {i + 1}: {segment['name']}")
+    #         ax.set_title('Сегменты аудиодорожки')
+    #         ax.set_xlabel('Время (сэмплы)')
+    #         ax.set_yticks([])
+    #         ax.set_ylim(-0.2, 0.2)
+    #         ax.legend(bbox_to_anchor=(0, -0.3), loc='upper left', ncol=2)
+    #         self.canvas.draw()
+    #     else:
+    #         print("Нет комбинированной аудиодорожки для визуализации.")
     def visualize_audio(self):
         if hasattr(self, 'combined_audio'):
             data = np.array(self.combined_audio.get_array_of_samples())
-            plt.figure(figsize=(12, 3))
 
+            # Создаем фигуру и подграфики с темно-серым фоном
+            fig, ax = plt.subplots(2, 1, figsize=(11.20, 5), facecolor='#1c1c1c')
 
-            # Horizontal timeline
-            plt.subplot(1, 1, 1)
-            plt.plot(data)
-            plt.title('Горизонтальный таймлайн аудиодорожки')
-            plt.xlabel('Время (сэмплы)')
-            plt.yticks([])  # Hide y-axis ticks for clarity
-            plt.grid(True)
+            # Устанавливаем цвет фона для осей (светло-серый)
+            for a in ax:
+                a.set_facecolor('#333333')
+
+            # График таймлайна
+            ax[0].tick_params(axis='x', colors='white')
+            ax[0].plot(data)  # Устанавливаем цвет линии
+            ax[0].set_title('Горизонтальный таймлайн аудиодорожки', color='white')
+            ax[0].set_xlabel('Время (сэмплы)', color='white')
+            ax[0].set_yticks([])  # Скрыть метки по оси Y для ясности
+            ax[0].grid(True)  # Устанавливаем цвет сетки
+
+            # Горизонтальная столбчатая диаграмма для сегментов аудиодорожки
+            colors = list(mcolors.TABLEAU_COLORS.values())
+            for i, segment in enumerate(self.audio_segments):
+                color = colors[i % len(colors)]
+                ax[1].barh(0, segment['end'] - segment['start'], left=segment['start'], height=0.1,
+                           color=color, label=f"File {i + 1}: {segment['name']}")
+            ax[1].tick_params(axis='x', colors='white')
+            ax[1].set_title('Сегменты аудиодорожки', color='white')
+            ax[1].set_xlabel('Время (сэмплы)', color='white')
+            ax[1].set_yticks([])  # Скрыть метки по оси Y
+            ax[1].set_ylim(-0.2, 0.2)  # Установить пределы по оси Y
+            ax[1].legend(bbox_to_anchor=(0, -0.3), loc='upper left', ncol=2, facecolor='gray')
 
             plt.tight_layout()
+
+            # Сохранение графика в папку saved_audio_files
+            output_image_path = os.path.join(SAVED_FILES_DIR, 'audio_visualization.png')
+            plt.savefig(output_image_path)
+            print(f"График сохранен как {output_image_path}")
+
             plt.show()
         else:
             print("Нет комбинированной аудиодорожки для визуализации.")
 
     def play_audio(self):
+        # Проигрываем комбинированную аудиодорожку
         if hasattr(self, 'combined_audio'):
             playback.play(self.combined_audio)
         else:
@@ -157,7 +217,7 @@ def main():
                 filename = "final_output.mp3"
             editor.export_final_file(filename)
         elif choice == "8":
-            break
+            editor.play_audio()
         else:
             print("Недействительный выбор, попробуйте снова.")
 
