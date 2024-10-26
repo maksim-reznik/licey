@@ -15,14 +15,6 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 
 import matplotlib
-matplotlib.use('Qt5Agg')
-
-class MplCanvas(FigureCanvas):
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        super(MplCanvas, self).__init__(fig)
 
 SAVED_FILES_DIR = "saved_audio_files"
 
@@ -31,6 +23,7 @@ class AudioEditor(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.audio_files = {}
+        self.audio_id = {}
         self.audio_segments = []
         self.audio_lengths = []
         self._create_output_directory()
@@ -41,13 +34,27 @@ class AudioEditor(QtWidgets.QMainWindow):
         self.init_ui()
 
     def init_ui(self):
-        self.setGeometry(150, 150, 1200, 1000)
+        self.setGeometry(50, 50, 1200, 1100)
 
         self.list_files = QListWidget(self)
-        self.list_files.resize(400, 500)
+        self.list_files.resize(400, 470)
         self.list_files.move(40, 40)
+        self.list_files.itemClicked.connect(self.on_item_clicked)
+
+        self.import_btn = QPushButton(self)
+        self.import_btn.setText('Добавить файл')
+        self.import_btn.move(40, 510)
+        self.import_btn.resize(200, 40)
+        self.import_btn.clicked.connect(self.import_files)
+
+        self.export_btn = QPushButton(self)
+        self.export_btn.setText("Экспортировать файл")
+        self.export_btn.move(240, 510)
+        self.export_btn.resize(200, 40)
+        self.export_btn.clicked.connect(self.export_final_file)
 
         # Для красоты
+
         self.file_inf_beauty = QListWidget(self)
         self.file_inf_beauty.resize(700, 60)
         self.file_inf_beauty.move(460, 40)
@@ -73,7 +80,7 @@ class AudioEditor(QtWidgets.QMainWindow):
         self.file_inf = QLabel(self)
         self.file_inf.setText(f'ID: {None}      Name: {None}')
         self.file_inf.move(500, 50)
-        self.file_inf.resize(300, 40)
+        self.file_inf.resize(500, 40)
         self.file_inf.setStyleSheet("QLabel{font-size: 15pt;}")
 
         self.add_file = QLabel(self)
@@ -129,10 +136,10 @@ class AudioEditor(QtWidgets.QMainWindow):
         self.console.move(685, 517)
         self.console.resize(4000, 20)
 
-        self.canvas = MplCanvas(self, width=7, height=4, dpi=100)
-
         self.graph_label = QLabel(self)
-        self.graph_label.setGeometry(600, 40, 700, 400)
+        self.graph_label.setGeometry(40, 580, 1120, 500)
+        pixmap = QPixmap('audio_visualization.png')
+        self.graph_label.setPixmap(pixmap)
 
         self.show()
 
@@ -155,8 +162,15 @@ class AudioEditor(QtWidgets.QMainWindow):
 
     def import_files(self):
         file_path = QtWidgets.QFileDialog.getOpenFileName()[0]
+        self.list_files.addItem(file_path.split('/')[-1])
+        self.audio_id[file_path.split('/')[-1]] = len(self.audio_files)
         self.audio_files[len(self.audio_files) + 1] = file_path
         shutil.copy(file_path, SAVED_FILES_DIR)
+
+    def on_item_clicked(self, item):
+        self.used_name = item.text()
+        self.used_ID = self.audio_id[self.used_name]
+        self.file_inf.setText(f'ID: {self.used_ID}      Name: {self.used_name}')
 
     def add_file_to_end(self):
         if self.used_ID in self.audio_files:
@@ -197,81 +211,96 @@ class AudioEditor(QtWidgets.QMainWindow):
             split_time_ms = self.split_slider.value() * 1000
             part1 = audio[:split_time_ms]
             part2 = audio[split_time_ms:]
-            part1_path = os.path.join(SAVED_FILES_DIR, f"part1_{self.audio_files[self.used_ID].split('/')[-1]}")
-            part2_path = os.path.join(SAVED_FILES_DIR, f"part2_{self.audio_files[self.used_ID].split('/')[-1]}")
+
+            # Создаём имена для новых файлов
+            part1_name = f"part1_{self.used_name}"
+            part2_name = f"part2_{self.used_name}"
+
+            # Сохраняем файлы
+            part1_path = os.path.join(SAVED_FILES_DIR, part1_name)
+            part2_path = os.path.join(SAVED_FILES_DIR, part2_name)
             part1.export(part1_path, format="mp3")
             part2.export(part2_path, format="mp3")
-            self.audio_files[len(self.audio_files) + 1] = part1_path
-            self.audio_files[len(self.audio_files) + 1] = part2_path
-            self.console_update(f"Файл {self.audio_files[self.used_ID]} разделен на две части.")
+
+            # Добавляем новые файлы в словарь audio_files
+            new_id1 = len(self.audio_files) + 1
+            new_id2 = len(self.audio_files) + 2
+            self.audio_files[new_id1] = part1_path
+            self.audio_files[new_id2] = part2_path
+
+            # Добавляем новые файлы в словарь audio_id
+            self.audio_id[part1_name] = new_id1
+            self.audio_id[part2_name] = new_id2
+
+            # Добавляем новые файлы в список QListWidget
+            self.list_files.addItem(part1_name)
+            self.list_files.addItem(part2_name)
+
+            self.console_update(f"Файл {self.used_name} разделен на две части и добавлен в проект")
         else:
             self.console_update("Недействительный ID файла.")
 
     def visualize_audio(self):
-        if not hasattr(self, 'combined_audio'):
-            return
+        if hasattr(self, 'combined_audio'):
+            data = np.array(self.combined_audio.get_array_of_samples())
 
-        # Создаем новую фигуру
-        fig = Figure(figsize=(7, 4), dpi=100)
-        axes = fig.add_subplot(111)
+            # Создаем фигуру и подграфики с темно-серым фоном
+            fig, ax = plt.subplots(2, 1, figsize=(11.20, 5), facecolor='#1c1c1c')
 
-        # Получаем данные аудио в виде массива
-        audio_array = np.array(self.combined_audio.get_array_of_samples())
+            # Устанавливаем цвет фона для осей (светло-серый)
+            for a in ax:
+                a.set_facecolor('#333333')
 
-        # Создаем временную шкалу (в секундах)
-        time = np.linspace(0, len(self.combined_audio) / 1000, len(audio_array))
+            # График таймлайна
+            ax[0].tick_params(axis='x', colors='white')
+            ax[0].plot(data)  # Устанавливаем цвет линии
+            ax[0].set_title('Горизонтальный таймлайн аудиодорожки', color='white')
+            ax[0].set_xlabel('Время (сэмплы)', color='white')
+            ax[0].set_yticks([])  # Скрыть метки по оси Y для ясности
+            ax[0].grid(True)  # Устанавливаем цвет сеткиpyunproject
 
-        # Строим график амплитуды
-        axes.plot(time, audio_array, color='lightblue', alpha=0.5, linewidth=0.5)
+            # Горизонтальная столбчатая диаграмма для сегментов аудиодорожки
+            colors = list(mcolors.TABLEAU_COLORS.values())
+            for i, segment in enumerate(self.audio_segments):
+                color = colors[i % len(colors)]
+                ax[1].barh(0, segment['end'] - segment['start'], left=segment['start'], height=0.1,
+                           color=color, label=f"File {i + 1}: {segment['name']}")
+            ax[1].tick_params(axis='x', colors='white')
+            ax[1].set_title('Сегменты аудиодорожки', color='white')
+            ax[1].set_xlabel('Время (сэмплы)', color='white')
+            ax[1].set_yticks([])  # Скрыть метки по оси Y
+            ax[1].set_ylim(-0.2, 0.2)  # Установить пределы по оси Y
+            ax[1].legend(bbox_to_anchor=(0, -0.3), loc='upper left', ncol=4, facecolor='gray')
 
-        # Добавляем разделители сегментов
-        for segment in self.audio_segments:
-            start_time = segment['start'] / 1000
-            end_time = segment['end'] / 1000
-
-            # Добавляем горизонтальную линию для сегмента
-            axes.hlines(y=0, xmin=start_time, xmax=end_time,
-                        color='red', linewidth=2)
-
-            # Добавляем название сегмента
-            middle_point = (start_time + end_time) / 2
-            axes.text(middle_point, -max(audio_array) * 0.5,
-                      segment['name'],
-                      rotation=45,
-                      ha='right')
-
-        # Настройка графика
-        axes.set_xlabel('Время (секунды)')
-        axes.set_ylabel('Амплитуда')
-        axes.set_title('Визуализация аудио')
-        axes.grid(True, alpha=0.3)
-
-        # Сохраняем график как изображение
-        graph_path = os.path.join(SAVED_FILES_DIR, 'current_visualization.png')
-        fig.savefig(graph_path, bbox_inches='tight', dpi=100)
-
-        # Загружаем изображение в QLabel
-        pixmap = QtGui.QPixmap(graph_path)
-        # Масштабируем изображение под размер QLabel
-        scaled_pixmap = pixmap.scaled(self.graph_label.size(),
-                                      QtCore.Qt.KeepAspectRatio,
-                                      QtCore.Qt.SmoothTransformation)
-        self.graph_label.setPixmap(scaled_pixmap)
-
-        # Закрываем фигуру для освобождения памяти
-        plt.close(fig)
-
+            plt.tight_layout()
+            output_image_path = os.path.join(SAVED_FILES_DIR, 'audio_visualization.png')
+            plt.savefig(output_image_path)
+            pixmap = QPixmap('saved_audio_files/audio_visualization.png')
+            self.graph_label.setPixmap(pixmap)
     def play_audio(self):
         if hasattr(self, 'combined_audio'):
             playback.play(self.combined_audio)
         else:
             self.console_update("Нет комбинированной аудиодорожки.")
 
-    def export_final_file(self, filename="final_output.mp3"):
+    def export_final_file(self):
         if hasattr(self, 'combined_audio'):
-            output_file_path = os.path.join(SAVED_FILES_DIR, filename)
-            self.combined_audio.export(output_file_path, format="mp3")
-            self.console_update(f"Файл экспортирован как {output_file_path}.")
+            # Открываем диалог выбора директории
+            export_path = QtWidgets.QFileDialog.getSaveFileName(
+                self,
+                'Сохранить файл',
+                '/',
+                'Audio Files (*.mp3)'
+            )[0]
+
+            if export_path:  # Если путь был выбран
+                try:
+                    self.combined_audio.export(export_path, format="mp3")
+                    self.console_update(f"Файл успешно экспортирован как {export_path}")
+                except Exception as e:
+                    self.console_update(f"Ошибка при экспорте файла: {str(e)}")
+            else:
+                self.console_update("Экспорт отменён")
         else:
             self.console_update("Нет комбинированной аудиодорожки для экспорта.")
 
