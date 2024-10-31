@@ -13,10 +13,148 @@ from matplotlib.figure import Figure
 from PyQt5.QtGui import QPixmap
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 
 import matplotlib
 
 SAVED_FILES_DIR = "saved_audio_files"
+
+
+class MediaPlayerDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Медиаплеер")
+        self.setGeometry(200, 200, 400, 150)
+        self.setup_ui()
+
+    def setup_ui(self):
+        # Создаем медиаплеер
+        self.media_player = QMediaPlayer()
+
+        # Создаем основной layout
+        main_layout = QtWidgets.QVBoxLayout()
+
+        # Создаем контейнер для элементов управления
+        control_layout = QtWidgets.QHBoxLayout()
+
+        # Создаем и настраиваем кнопки
+        self.play_button = QPushButton("▶")
+        self.play_button.setFixedSize(40, 40)
+        self.stop_button = QPushButton("⬛")
+        self.stop_button.setFixedSize(40, 40)
+
+        # Создаем и настраиваем слайдер громкости
+        self.volume_slider = QSlider(QtCore.Qt.Horizontal)
+        self.volume_slider.setFixedWidth(100)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(50)
+
+        # Создаем слайдер прогресса
+        self.progress_slider = QSlider(QtCore.Qt.Horizontal)
+        self.progress_slider.setRange(0, 100)
+
+        # Создаем метки времени
+        self.time_label = QLabel("0:00 / 0:00")
+
+        # Добавляем виджеты в контейнер управления
+        control_layout.addWidget(self.play_button)
+        control_layout.addWidget(self.stop_button)
+        control_layout.addWidget(QtWidgets.QLabel("🔊"))
+        control_layout.addWidget(self.volume_slider)
+
+        # Добавляем все элементы в основной layout
+        main_layout.addWidget(self.progress_slider)
+        main_layout.addLayout(control_layout)
+        main_layout.addWidget(self.time_label, alignment=QtCore.Qt.AlignCenter)
+
+        # Устанавливаем layout для диалога
+        self.setLayout(main_layout)
+
+        # Подключаем сигналы
+        self.play_button.clicked.connect(self.play_pause)
+        self.stop_button.clicked.connect(self.stop)
+        self.volume_slider.valueChanged.connect(self.change_volume)
+        self.progress_slider.sliderMoved.connect(self.set_position)
+
+        # Подключаем сигналы медиаплеера
+        self.media_player.positionChanged.connect(self.position_changed)
+        self.media_player.durationChanged.connect(self.duration_changed)
+        self.media_player.stateChanged.connect(self.media_state_changed)
+
+    def set_audio(self, audio_segment):
+        # Сохраняем временный файл для воспроизведения
+        self.temp_path = os.path.join(SAVED_FILES_DIR, 'temp_playback.mp3')
+        audio_segment.export(self.temp_path, format="mp3")
+        self.media_player.setMedia(
+            QMediaContent(QtCore.QUrl.fromLocalFile(self.temp_path)))
+
+    def play_pause(self):
+        if self.media_player.state() == QMediaPlayer.PlayingState:
+            self.media_player.pause()
+        else:
+            self.media_player.play()
+
+    def stop(self):
+        self.media_player.stop()
+
+    def change_volume(self, value):
+        self.media_player.setVolume(value)
+
+    def set_position(self, position):
+        self.media_player.setPosition(position)
+
+    def position_changed(self, position):
+        self.progress_slider.setValue(position)
+        self.update_time_label()
+
+    def duration_changed(self, duration):
+        self.progress_slider.setRange(0, duration)
+        self.update_time_label()
+
+    def media_state_changed(self, state):
+        if state == QMediaPlayer.PlayingState:
+            self.play_button.setText("⏸")
+        else:
+            self.play_button.setText("▶")
+
+    def update_time_label(self):
+        position = self.media_player.position()
+        duration = self.media_player.duration()
+        self.time_label.setText(f"{self.format_time(position)} / {self.format_time(duration)}")
+
+    def format_time(self, ms):
+        s = ms // 1000
+        m = s // 60
+        s = s % 60
+        return f"{m}:{s:02d}"
+
+    def closeEvent(self, event):
+        self.media_player.stop()
+        if hasattr(self, 'temp_path') and os.path.exists(self.temp_path):
+            try:
+                os.remove(self.temp_path)
+            except:
+                pass
+        super().closeEvent(event)
+
+
+class HistoryWindow(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("История действий")
+        self.setGeometry(200, 200, 400, 300)
+
+        self.history_text = QtWidgets.QTextEdit(self)
+        self.history_text.setReadOnly(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.history_text)
+
+        self.close_button = QPushButton("Закрыть", self)
+        self.close_button.clicked.connect(self.close)
+        layout.addWidget(self.close_button)
 
 
 class AudioEditor(QtWidgets.QMainWindow):
@@ -32,6 +170,12 @@ class AudioEditor(QtWidgets.QMainWindow):
         self.used_ID = 0
         self.used_name = ''
         self.init_ui()
+
+        self.history = []
+        self.history_button = QPushButton("История", self)
+        self.history_button.move(685, 517)
+        self.history_button.resize(100, 30)
+        self.history_button.clicked.connect(self.show_history)
 
     def init_ui(self):
         self.setGeometry(50, 50, 1200, 1100)
@@ -130,11 +274,11 @@ class AudioEditor(QtWidgets.QMainWindow):
         self.split_txt.move(530, 420)
         self.split_txt.resize(200, 20)
 
-        self.console = QLabel(self)
-        self.console.setText('Запуск программы')
-        self.console.setStyleSheet("QLabel{font-size: 11pt;}")
-        self.console.move(685, 517)
-        self.console.resize(4000, 20)
+        self.history = []
+        self.history_button = QPushButton("История", self)
+        self.history_button.move(685, 517)
+        self.history_button.resize(100, 30)
+        self.history_button.clicked.connect(self.show_history)
 
         self.graph_label = QLabel(self)
         self.graph_label.setGeometry(40, 580, 1120, 500)
@@ -149,6 +293,18 @@ class AudioEditor(QtWidgets.QMainWindow):
         self.help_btn.clicked.connect(self.show_help)
 
         self.show()
+        self.open_player_btn = QPushButton("Открыть медиаплеер", self)
+        self.open_player_btn.move(40, 570)  # Настройте позицию под ваш интерфейс
+        self.open_player_btn.resize(150, 30)
+        self.open_player_btn.clicked.connect(self.show_media_player)
+
+    def show_media_player(self):
+        if hasattr(self, 'combined_audio'):
+            self.media_player_dialog = MediaPlayerDialog(self)
+            self.media_player_dialog.set_audio(self.combined_audio)
+            self.media_player_dialog.show()
+        else:
+            self.console_update("Нет аудио для воспроизведения", is_error=True)
 
     def show_help(self):
         help_window = QtWidgets.QDialog(self)
@@ -257,9 +413,11 @@ class AudioEditor(QtWidgets.QMainWindow):
             part1 = audio[:split_time_ms]
             part2 = audio[split_time_ms:]
 
-            # Создаём имена для новых файлов
-            part1_name = f"part1_{self.used_name}"
-            part2_name = f"part2_{self.used_name}"
+            # Добавляем временную метку к именам файлов
+            import time
+            timestamp = int(time.time())
+            part1_name = f"part1_{timestamp}_{self.used_name}"
+            part2_name = f"part2_{timestamp}_{self.used_name}"
 
             # Сохраняем файлы
             part1_path = os.path.join(SAVED_FILES_DIR, part1_name)
@@ -364,23 +522,13 @@ class AudioEditor(QtWidgets.QMainWindow):
         return filename
 
     def console_update(self, txt):
-        # Находим имя файла в тексте (обычно оно находится после последнего пробела)
-        if "Файл" in txt:
-            parts = txt.split("Файл ", 1)
-            if len(parts) > 1:
-                before_file = parts[0] + "Файл "
-                file_and_rest = parts[1]
+        # Сохраняем сообщение в историю
+        self.history.append(txt)
 
-                # Разделяем имя файла и оставшийся текст
-                if " " in file_and_rest:
-                    filename, rest = file_and_rest.split(" ", 1)
-                    truncated_filename = self.truncate_filename(filename, 12)
-                    txt = before_file + truncated_filename + " " + rest
-                else:
-                    truncated_filename = self.truncate_filename(file_and_rest, 12)
-                    txt = before_file + truncated_filename
-
-        self.console.setText(txt)
+    def show_history(self):
+        history_window = HistoryWindow(self)
+        history_window.history_text.setText("\n".join(self.history))
+        history_window.exec_()
 
     def on_item_clicked(self, item):
         self.used_name = item.text()
