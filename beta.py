@@ -157,9 +157,150 @@ class HistoryWindow(QtWidgets.QDialog):
         layout.addWidget(self.close_button)
 
 
+# class AudioEditor(QtWidgets.QMainWindow):
+#     def __init__(self):
+#         super().__init__()
+#         self.audio_files = {}
+#         self.audio_id = {}
+#         self.audio_segments = []
+#         self.audio_lengths = []
+#         self._create_output_directory()
+#         self._create_saved_files_directory()
+#         self._clean_output_directory()
+#         self.used_ID = 0
+#         self.used_name = ''
+#         self.init_ui()
+#
+#         self.history = []
+#         self.history_button = QPushButton("История", self)
+#         self.history_button.move(685, 517)
+#         self.history_button.resize(100, 30)
+#         self.history_button.clicked.connect(self.show_history)
+#
+#     def init_ui(self):
+#         self.setGeometry(50, 50, 1200, 1100)
+#
+#         self.list_files = QListWidget(self)
+#         self.list_files.resize(400, 470)
+#         self.list_files.move(40, 40)
+#         self.list_files.itemClicked.connect(self.on_item_clicked)
+#
+#         self.import_btn = QPushButton(self)
+#         self.import_btn.setText('Добавить файл')
+#         self.import_btn.move(40, 510)
+#         self.import_btn.resize(200, 40)
+#         self.import_btn.clicked.connect(self.import_files)
+#
+#         self.export_btn = QPushButton(self)
+#         self.export_btn.setText("Экспортировать файл")
+#         self.export_btn.move(240, 510)
+#         self.export_btn.resize(200, 40)
+#         self.export_btn.clicked.connect(self.export_final_file)
+#
+#         # Для красоты
+#
+#         self.file_inf_beauty = QListWidget(self)
+#         self.file_inf_beauty.resize(700, 60)
+#         self.file_inf_beauty.move(460, 40)
+#
+#         self.add_file_beauty = QListWidget(self)
+#         self.add_file_beauty.resize(700, 80)
+#         self.add_file_beauty.move(460, 120)
+#
+#         self.remove_file_beauty = QListWidget(self)
+#         self.remove_file_beauty.resize(700, 80)
+#         self.remove_file_beauty.move(460, 220)
+#
+#         self.split_file_beauty = QListWidget(self)
+#         self.split_file_beauty.resize(700, 160)
+#         self.split_file_beauty.move(460, 320)
+#
+#         self.console_beauty = QListWidget(self)
+#         self.console_beauty.resize(500, 60)
+#         self.console_beauty.move(660, 500)
+#
+#         # Конец красоты
+#
+#         self.file_inf = QLabel(self)
+#         self.file_inf.setText(f'ID: {None}      Name: {None}')
+#         self.file_inf.move(500, 50)
+#         self.file_inf.resize(500, 40)
+#         self.file_inf.setStyleSheet("QLabel{font-size: 15pt;}")
+#
+#         self.add_file = QLabel(self)
+#         self.add_file.setText('Добавить файл в конец аудиодорожки')
+#         self.add_file.move(500, 108)
+#         self.add_file.resize(500, 100)
+#         self.add_file.setStyleSheet("QLabel{font-size: 15pt;}")
+#
+#         self.add_btn = QPushButton(self)
+#         self.add_btn.move(970, 145)
+#         self.add_btn.resize(170, 30)
+#         self.add_btn.setText('Нажмите для действия')
+#         self.add_btn.clicked.connect(self.add_file_to_end)
+#
+#         self.remove_file = QLabel(self)
+#         self.remove_file.setText('Удалить последний файл с аудиодорожки')
+#         self.remove_file.move(500, 210)
+#         self.remove_file.resize(500, 100)
+#         self.remove_file.setStyleSheet("QLabel{font-size: 15pt;}")
+#
+#         self.remove_btn = QPushButton(self)
+#         self.remove_btn.move(970, 245)
+#         self.remove_btn.resize(170, 30)
+#         self.remove_btn.setText('Нажмите для действия')
+#         self.remove_btn.clicked.connect(self.remove_last_file)
+#
+#         self.split_file_txt = QLabel(self)
+#         self.split_file_txt.setText("Разделить выбранный файл")
+#         self.split_file_txt.move(500, 310)
+#         self.split_file_txt.resize(500, 100)
+#         self.split_file_txt.setStyleSheet("QLabel{font-size: 15pt;}")
+#
+#         self.split_btn = QPushButton(self)
+#         self.split_btn.move(970, 345)
+#         self.split_btn.resize(170, 30)
+#         self.split_btn.setText('Нажмите для действия')
+#         self.split_btn.clicked.connect(self.split_file)
+#
+#         self.split_slider = QSlider(QtCore.Qt.Orientation.Horizontal, self)
+#         self.split_slider.setRange(0, 10)
+#         # self.split_slider.setRange(0, self.audio_lengths[self.used_ID])
+#         self.split_slider.move(500, 385)
+#         self.split_slider.resize(400, 50)
+#
+#         self.split_txt = QLabel(self)
+#         self.split_txt.setText('Укажите время разделения')
+#         self.split_txt.move(530, 420)
+#         self.split_txt.resize(200, 20)
+#
+#         self.history = []
+#         self.history_button = QPushButton("История", self)
+#         self.history_button.move(685, 517)
+#         self.history_button.resize(100, 30)
+#         self.history_button.clicked.connect(self.show_history)
+#
+#         self.graph_label = QLabel(self)
+#         self.graph_label.setGeometry(40, 580, 1120, 500)
+#         pixmap = QPixmap('audio_visualization.png')
+#         self.graph_label.setPixmap(pixmap)
+#
+#         # В методе init_ui добавьте:
+#         self.help_btn = QPushButton(self)
+#         self.help_btn.setText("Справка")
+#         self.help_btn.move(465, 510)  # Измените координаты по необходимости
+#         self.help_btn.resize(170, 40)
+#         self.help_btn.clicked.connect(self.show_help)
+#
+#         self.show()
+#         self.open_player_btn = QPushButton("Открыть медиаплеер", self)
+#         self.open_player_btn.move(40, 570)  # Настройте позицию под ваш интерфейс
+#         self.open_player_btn.resize(150, 30)
+#         self.open_player_btn.clicked.connect(self.show_media_player)
 class AudioEditor(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        self.mod = 0.5  # Умножитель для размеров и координат
         self.audio_files = {}
         self.audio_id = {}
         self.audio_segments = []
@@ -173,130 +314,136 @@ class AudioEditor(QtWidgets.QMainWindow):
 
         self.history = []
         self.history_button = QPushButton("История", self)
-        self.history_button.move(685, 517)
-        self.history_button.resize(100, 30)
+        self.history_button.move(685 * self.mod, 517 * self.mod)
+        self.history_button.resize(100 * self.mod, 30 * self.mod)
         self.history_button.clicked.connect(self.show_history)
+        self.history_button.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
     def init_ui(self):
-        self.setGeometry(50, 50, 1200, 1100)
+        self.setGeometry(50 * self.mod, 50 * self.mod, 1200 * self.mod, 1100 * self.mod)
 
         self.list_files = QListWidget(self)
-        self.list_files.resize(400, 470)
-        self.list_files.move(40, 40)
+        self.list_files.resize(400 * self.mod, 470 * self.mod)
+        self.list_files.move(40 * self.mod, 40 * self.mod)
         self.list_files.itemClicked.connect(self.on_item_clicked)
+        self.list_files.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.import_btn = QPushButton(self)
         self.import_btn.setText('Добавить файл')
-        self.import_btn.move(40, 510)
-        self.import_btn.resize(200, 40)
+        self.import_btn.move(40 * self.mod, 510 * self.mod)
+        self.import_btn.resize(200 * self.mod, 40 * self.mod)
         self.import_btn.clicked.connect(self.import_files)
+        self.import_btn.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.export_btn = QPushButton(self)
         self.export_btn.setText("Экспортировать файл")
-        self.export_btn.move(240, 510)
-        self.export_btn.resize(200, 40)
+        self.export_btn.move(240 * self.mod, 510 * self.mod)
+        self.export_btn.resize(200 * self.mod, 40 * self.mod)
         self.export_btn.clicked.connect(self.export_final_file)
+        self.export_btn.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
 
         # Для красоты
-
         self.file_inf_beauty = QListWidget(self)
-        self.file_inf_beauty.resize(700, 60)
-        self.file_inf_beauty.move(460, 40)
+        self.file_inf_beauty.resize(700 * self.mod, 60 * self.mod)
+        self.file_inf_beauty.move(460 * self.mod, 40 * self.mod)
 
         self.add_file_beauty = QListWidget(self)
-        self.add_file_beauty.resize(700, 80)
-        self.add_file_beauty.move(460, 120)
+        self.add_file_beauty.resize(700 * self.mod, 80 * self.mod)
+        self.add_file_beauty.move(460 * self.mod, 120 * self.mod)
 
         self.remove_file_beauty = QListWidget(self)
-        self.remove_file_beauty.resize(700, 80)
-        self.remove_file_beauty.move(460, 220)
+        self.remove_file_beauty.resize(700 * self.mod, 80 * self.mod)
+        self.remove_file_beauty.move(460 * self.mod, 220 * self.mod)
 
         self.split_file_beauty = QListWidget(self)
-        self.split_file_beauty.resize(700, 160)
-        self.split_file_beauty.move(460, 320)
+        self.split_file_beauty.resize(700 * self.mod, 160 * self.mod)
+        self.split_file_beauty.move(460 * self.mod, 320 * self.mod)
 
         self.console_beauty = QListWidget(self)
-        self.console_beauty.resize(500, 60)
-        self.console_beauty.move(660, 500)
+        self.console_beauty.resize(500 * self.mod, 60 * self.mod)
+        self.console_beauty.move(660 * self.mod, 500 * self.mod)
 
         # Конец красоты
-
         self.file_inf = QLabel(self)
         self.file_inf.setText(f'ID: {None}      Name: {None}')
-        self.file_inf.move(500, 50)
-        self.file_inf.resize(500, 40)
-        self.file_inf.setStyleSheet("QLabel{font-size: 15pt;}")
+        self.file_inf.move(500 * self.mod, 50 * self.mod)
+        self.file_inf.resize(500 * self.mod, 40 * self.mod)
+        self.file_inf.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.add_file = QLabel(self)
         self.add_file.setText('Добавить файл в конец аудиодорожки')
-        self.add_file.move(500, 108)
-        self.add_file.resize(500, 100)
-        self.add_file.setStyleSheet("QLabel{font-size: 15pt;}")
+        self.add_file.move(500 * self.mod, 108 * self.mod)
+        self.add_file.resize(500 * self.mod, 100 * self.mod)
+        self.add_file.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.add_btn = QPushButton(self)
-        self.add_btn.move(970, 145)
-        self.add_btn.resize(170, 30)
+        self.add_btn.move(970 * self.mod, 145 * self.mod)
+        self.add_btn.resize(170 * self.mod, 30 * self.mod)
         self.add_btn.setText('Нажмите для действия')
         self.add_btn.clicked.connect(self.add_file_to_end)
+        self.add_btn.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.remove_file = QLabel(self)
         self.remove_file.setText('Удалить последний файл с аудиодорожки')
-        self.remove_file.move(500, 210)
-        self.remove_file.resize(500, 100)
-        self.remove_file.setStyleSheet("QLabel{font-size: 15pt;}")
+        self.remove_file.move(500 * self.mod, 210 * self.mod)
+        self.remove_file.resize(500 * self.mod, 100 * self.mod)
+        self.remove_file.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.remove_btn = QPushButton(self)
-        self.remove_btn.move(970, 245)
-        self.remove_btn.resize(170, 30)
+        self.remove_btn.move(970 * self.mod, 245 * self.mod)
+        self.remove_btn.resize(170 * self.mod, 30 * self.mod)
         self.remove_btn.setText('Нажмите для действия')
         self.remove_btn.clicked.connect(self.remove_last_file)
+        self.remove_btn.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.split_file_txt = QLabel(self)
         self.split_file_txt.setText("Разделить выбранный файл")
-        self.split_file_txt.move(500, 310)
-        self.split_file_txt.resize(500, 100)
-        self.split_file_txt.setStyleSheet("QLabel{font-size: 15pt;}")
+        self.split_file_txt.move(500 * self.mod, 310 * self.mod)
+        self.split_file_txt.resize(500 * self.mod, 100 * self.mod)
+        self.split_file_txt.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.split_btn = QPushButton(self)
-        self.split_btn.move(970, 345)
-        self.split_btn.resize(170, 30)
+        self.split_btn.move(970 * self.mod, 345 * self.mod)
+        self.split_btn.resize(170 * self.mod, 30 * self.mod)
         self.split_btn.setText('Нажмите для действия')
         self.split_btn.clicked.connect(self.split_file)
+        self.split_btn.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.split_slider = QSlider(QtCore.Qt.Orientation.Horizontal, self)
         self.split_slider.setRange(0, 10)
-        # self.split_slider.setRange(0, self.audio_lengths[self.used_ID])
-        self.split_slider.move(500, 385)
-        self.split_slider.resize(400, 50)
+        self.split_slider.move(500 * self.mod, 385 * self.mod)
+        self.split_slider.resize(400 * self.mod, 50 * self.mod)
+        self.split_slider.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.split_txt = QLabel(self)
         self.split_txt.setText('Укажите время разделения')
-        self.split_txt.move(530, 420)
-        self.split_txt.resize(200, 20)
+        self.split_txt.move(530 * self.mod, 420 * self.mod)
+        self.split_txt.resize(400 * self.mod, 20 * self.mod)
+        self.split_txt.setStyleSheet("QLabel{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.history = []
         self.history_button = QPushButton("История", self)
-        self.history_button.move(685, 517)
-        self.history_button.resize(100, 30)
+        self.history_button.move(685 * self.mod, 517 * self.mod)
+        self.history_button.resize(100 * self.mod, 30 * self.mod)
         self.history_button.clicked.connect(self.show_history)
+        self.history_button.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
 
         self.graph_label = QLabel(self)
-        self.graph_label.setGeometry(40, 580, 1120, 500)
+        self.graph_label.setGeometry(40 * self.mod, 580 * self.mod, 1120 * self.mod, 500 * self.mod)
         pixmap = QPixmap('audio_visualization.png')
         self.graph_label.setPixmap(pixmap)
 
-        # В методе init_ui добавьте:
         self.help_btn = QPushButton(self)
         self.help_btn.setText("Справка")
-        self.help_btn.move(465, 510)  # Измените координаты по необходимости
-        self.help_btn.resize(170, 40)
+        self.help_btn.move(465 * self.mod, 510 * self.mod)
+        self.help_btn.resize(170 * self.mod, 40 * self.mod)
         self.help_btn.clicked.connect(self.show_help)
+        self.help_btn.setStyleSheet("QPushButton{font-size:" + str(15 * self.mod) + "pt;}")
+
+
 
         self.show()
-        self.open_player_btn = QPushButton("Открыть медиаплеер", self)
-        self.open_player_btn.move(40, 570)  # Настройте позицию под ваш интерфейс
-        self.open_player_btn.resize(150, 30)
-        self.open_player_btn.clicked.connect(self.show_media_player)
+
 
     def show_media_player(self):
         if hasattr(self, 'combined_audio'):
@@ -448,7 +595,7 @@ class AudioEditor(QtWidgets.QMainWindow):
             data = np.array(self.combined_audio.get_array_of_samples())
 
             # Создаем фигуру и подграфики с темно-серым фоном
-            fig, ax = plt.subplots(2, 1, figsize=(11.20, 5), facecolor='#1c1c1c')
+            fig, ax = plt.subplots(2, 1, figsize=(11.20 * self.mod, 5 * self.mod), facecolor='#1c1c1c')
 
             # Устанавливаем цвет фона для осей (светло-серый)
             for a in ax:
@@ -490,9 +637,9 @@ class AudioEditor(QtWidgets.QMainWindow):
         if hasattr(self, 'combined_audio'):
             # Определяем домашний каталог в зависимости от операционной системы
             if os.name == 'nt':  # для Windows
-                default_path = os.path.expanduser('~\\Documents')
+                default_path = os.path.expanduser('~\\')
             else:  # для Linux и MacOS
-                default_path = os.path.expanduser('~/Documents')
+                default_path = os.path.expanduser('~/')
 
             # Открываем диалог выбора директории
             export_path = QtWidgets.QFileDialog.getSaveFileName(
@@ -540,7 +687,7 @@ class AudioEditor(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
-    # app.setStyleSheet('QTextEdit{background-image:url("yaratici.jpeg");}')
     app.setPalette(DarkPalette())
     editor = AudioEditor()
     app.exec_()
+
