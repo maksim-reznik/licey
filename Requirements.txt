@@ -1,0 +1,9 @@
+threading
+pygame
+tempfile
+multiprocessing
+numpy
+pydub
+PyQt5
+darktheme.widget_template
+matplotlib
